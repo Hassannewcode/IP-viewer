@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IP Logger with Live Location Viewer</title>
+    <title>WiFi IP Logger with Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <style>
         body {
@@ -72,7 +72,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>IP Logger with Live Location Viewer</h1>
+        <h1>WiFi IP Logger with Map</h1>
         <table id="ipTable">
             <thead>
                 <tr>
@@ -101,8 +101,8 @@
         const commandInput = document.getElementById('commandInput');
         const map = L.map('map').setView([0, 0], 2);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
         function printToTerminal(message) {
