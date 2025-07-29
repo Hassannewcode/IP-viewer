@@ -164,6 +164,17 @@
                     </td>
                 `;
                 tableBody.appendChild(row);
+                addMarker(device.ip, geoData.lat, geoData.lon);
+            }
+        }
+
+        function addMarker(ip, lat, lon) {
+            if (lat && lon) {
+                L.marker([lat, lon]).addTo(map)
+                    .bindPopup(`IP: ${ip}`)
+                    .openPopup();
+            } else {
+                printToTerminal(`Location data not available for IP: ${ip}`);
             }
         }
 
@@ -209,14 +220,29 @@
             } else if (command.startsWith('view ')) {
                 const ip = command.split(' ')[1];
                 viewLocation(ip);
+            } else if (command === 'list') {
+                listAllIps();
             } else {
                 printToTerminal(`Unknown command: ${command}`);
             }
         }
 
+        function listAllIps() {
+            const tableBody = document.querySelector('#ipTable tbody');
+            const rows = tableBody.getElementsByTagName('tr');
+            const ips = [];
+            for (let i = 0; i < rows.length; i++) {
+                const cells = rows[i].getElementsByTagName('td');
+                if (cells.length > 0) {
+                    ips.push(cells[0].textContent);
+                }
+            }
+            printToTerminal(`List of all IPs: ${ips.join(', ')}`);
+        }
+
         window.onload = function() {
             printToTerminal('IP Logger Terminal');
-            printToTerminal('Type "ipscan" to start IP scanning, "update" to update the scan, "block <ip>" to block an IP, "unblock <ip>" to unblock an IP, or "view <ip>" to view the location of an IP.');
+            printToTerminal('Type "ipscan" to start IP scanning, "update" to update the scan, "block <ip>" to block an IP, "unblock <ip>" to unblock an IP, "view <ip>" to view the location of an IP, or "list" to list all IPs.');
             updateIPInfo();
         };
     </script>
