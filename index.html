@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Logger with Live Location Viewer</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 80%;
+            margin: 50px auto;
+            background: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        #map {
+            height: 400px;
+            margin-top: 20px;
+        }
+        .terminal {
+            width: 100%;
+            height: 200px;
+            background: #000;
+            color: #0F0;
+            padding: 20px;
+            overflow-y: auto;
+            border: 2px solid #0F0;
+            margin-top: 20px;
+        }
+        .command-input {
+            display: flex;
+            background: #000;
+            border-top: 2px solid #0F0;
+            padding: 10px;
+        }
+        .command-input input {
+            flex: 1;
+            background: #000;
+            border: 2px solid #0F0;
+            color: #0F0;
+            padding: 10px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .command-input button {
+            background: #000;
+            border: 2px solid #0F0;
+            color: #0F0;
+            padding: 10px;
+            cursor: pointer;
+            font-family: 'Courier New', Courier, monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>IP Logger with Live Location Viewer</h1>
+        <table id="ipTable">
+            <thead>
+                <tr>
+                    <th>IP Address</th>
+                    <th>Username</th>
+                    <th>Country</th>
+                    <th>Last Seen</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Dynamic content will be inserted here -->
+            </tbody>
+        </table>
+        <div id="map"></div>
+        <div class="terminal" id="terminal"></div>
+        <div class="command-input">
+            <input type="text" id="commandInput" placeholder="Enter command">
+            <button onclick="executeCommand()">Enter</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const terminal = document.getElementById('terminal');
+        const commandInput = document.getElementById('commandInput');
+        const map = L.map('map').setView([0, 0], 2);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        function printToTerminal(message) {
+            const p = document.createElement('p');
+            p.textContent = message;
+            terminal.appendChild(p);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        async function getPublicIP() {
+            const response = await fetch('https://api.ipify.org?format=json');
+            const data = await response.json();
+            return data.ip;
+        }
+
+        async function getGeolocation(ip) {
+            const response = await fetch(`http://ip-api.com/json/${ip}`);
+            const data = await response.json();
+            return data;
+        }
+
+        async function scanNetwork() {
+            const ipRange = '192.168.1.';
+            const devices = [];
+            for (let i = 1; i <= 254; i++) {
+                const ip = ipRange + i;
+                try {
+                    const response = await fetch(`http://${ip}`);
+                    if (response.status === 200) {
+                        devices.push({ ip, username: 'unknown', lastSeen: new Date().toLocaleString() });
+                    }
+                } catch (error) {
+                    // Device is not reachable, continue to next IP
+                }
+            }
+            return devices;
+        }
+
+        async function logIPInfo() {
+            const publicIP = await getPublicIP();
+            printToTerminal(`Public IP: ${publicIP}`);
+
+            const devices = await scanNetwork();
+
+            const tableBody = document.querySelector('#ipTable tbody');
+            tableBody.innerHTML = ''; // Clear previous data
+            for (const device of devices) {
+                const geoData = await getGeolocation(device.ip);
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${device.ip}</td>
+                    <td>${device.username}</td>
+                    <td>${geoData.country}</td>
+                    <td>${device.lastSeen}</td>
+                    <td>
+                        <button onclick="viewLocation('${device.ip}')">View Location</button>
+                        <button onclick="blockIP('${device.ip}')">Block</button>
+                        <button onclick="unblockIP('${device.ip}')">Unblock</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            }
+        }
+
+        function viewLocation(ip) {
+            getGeolocation(ip).then(data => {
+                if (data.lat && data.lon) {
+                    map.setView([data.lat, data.lon], 13);
+                    L.marker([data.lat, data.lon]).addTo(map)
+                        .bindPopup(`IP: ${ip}<br>Location: ${data.city}, ${data.regionName}, ${data.country}`)
+                        .openPopup();
+                } else {
+                    printToTerminal(`Location data not available for IP: ${ip}`);
+                }
+            });
+        }
+
+        function blockIP(ip) {
+            printToTerminal(`IP ${ip} has been blocked.`);
+        }
+
+        function unblockIP(ip) {
+            printToTerminal(`IP ${ip} has been unblocked.`);
+        }
+
+        function updateIPInfo() {
+            logIPInfo();
+            setTimeout(updateIPInfo, 60000);
+        }
+
+        function executeCommand() {
+            const command = commandInput.value.trim();
+            commandInput.value = '';
+            if (command === 'ipscan') {
+                logIPInfo();
+            } else if (command === 'update') {
+                updateIPInfo();
+            } else if (command.startsWith('block ')) {
+                const ip = command.split(' ')[1];
+                blockIP(ip);
+            } else if (command.startsWith('unblock ')) {
+                const ip = command.split(' ')[1];
+                unblockIP(ip);
+            } else if (command.startsWith('view ')) {
+                const ip = command.split(' ')[1];
+                viewLocation(ip);
+            } else {
+                printToTerminal(`Unknown command: ${command}`);
+            }
+        }
+
+        window.onload = function() {
+            printToTerminal('IP Logger Terminal');
+            printToTerminal('Type "ipscan" to start IP scanning, "update" to update the scan, "block <ip>" to block an IP, "unblock <ip>" to unblock an IP, or "view <ip>" to view the location of an IP.');
+            updateIPInfo();
+        };
+    </script>
+</body>
+</html>
